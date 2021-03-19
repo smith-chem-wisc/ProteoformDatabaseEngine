@@ -9,7 +9,7 @@ dependencies:
   - gatk4 =4.1.9.0
   - hisat2 =2.2.1
   - samtools =1.11
-  - sra-tools
+  - sra-tools =2.10.1
   - stringtie
   - biopython
   - git
@@ -23,6 +23,7 @@ dependencies:
   - curl
   - dotnet-sdk =3.1.403
   - java-jdk =8.0.92
+  - openssh
   - aspera-cli
   - r =4.0 # for ProteomeGenerator
   - bioconductor-biostrings # for ProteomeGenerator
