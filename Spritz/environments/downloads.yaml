@@ -1,0 +1,12 @@
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python =3.8
+  - wget
+  - curl
+  - gzip
+  - unzip
+  - biopython
+  - git

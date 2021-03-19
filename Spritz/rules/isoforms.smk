@@ -7,6 +7,7 @@ if check('sra'):
         output: "{dir}/isoforms/{sra}.sra.sorted.gtf"
         threads: 6
         log: "{dir}/isoforms/{sra}.sra.sorted.gtf.log"
+        conda: "environments/isoforms.yaml"
         shell:
             "stringtie {input.bam} -p {threads} -G {input.gff} -o {output} -c 2.5 -m 300 -f .01 2> {log}" # strandedness: --fr for forwared or --rf for reverse
 
@@ -19,6 +20,7 @@ if check('sra_se'):
         output: "{dir}/isoforms/{sra_se}.sra_se.sorted.gtf"
         threads: 6
         log: "{dir}/isoforms/{sra_se}.sra_se.sorted.gtf.log"
+        conda: "environments/isoforms.yaml"
         shell:
             "stringtie {input.bam} -p {threads} -G {input.gff} -o {output} -c 2.5 -m 300 -f .01 2> {log}" # strandedness: --fr for forwared or --rf for reverse
 
@@ -31,6 +33,7 @@ if check('fq'):
         output: "{dir}/isoforms/{fq}.fq.sorted.gtf"
         threads: 6
         log: "{dir}/isoforms/{fq}.fq.sorted.gtf.log"
+        conda: "environments/isoforms.yaml"
         shell:
             "stringtie {input.bam} -p {threads} -G {input.gff} -o {output} -c 2.5 -m 300 -f .01 2> {log}" # strandedness: --fr for forwared or --rf for reverse
 
@@ -43,6 +46,7 @@ if check('fq_se'):
         output: "{dir}/isoforms/{fq_se}.fq_se.sorted.gtf"
         threads: 6
         log: "{dir}/isoforms/{fq_se}.fq_se.sorted.gtf.log"
+        conda: "environments/isoforms.yaml"
         shell:
             "stringtie {input.bam} -p {threads} -G {input.gff} -o {output} -c 2.5 -m 300 -f .01 2> {log}" # strandedness: --fr for forwared or --rf for reverse
 
@@ -59,6 +63,7 @@ rule merge_transcripts:
     threads: 12
     benchmark: "{dir}/isoforms/combined.gtf.benchmark"
     log: "{dir}/isoforms/combined.gtf.log"
+    conda: "environments/isoforms.yaml"
     shell:
         "stringtie --merge -o {output} -c 2.5 -m 300 -T 1 -f .01 -p {threads} -i {input.custom_gtfs} 2> {log}"
 
@@ -67,6 +72,7 @@ rule convert2ucsc:
     input: "{dir}/isoforms/combined.gtf"
     output: "{dir}/isoforms/combined_ucsc.gtf"
     log: "{dir}/isoforms/combined_ucsc.gtf.log"
+    conda: "environments/isoforms.yaml"
     shell: "python scripts/convert_ensembl2ucsc.py {input} {output} 2> {log}"
 
 rule gtf_file_to_cDNA_seqs:
@@ -79,6 +85,7 @@ rule gtf_file_to_cDNA_seqs:
         gtf="{dir}/isoforms/combined.transcripts.gtf"
     benchmark: "{dir}/isoforms/combined.gtf_file_to_cDNA_seqs.benchmark"
     log: "{dir}/isoforms/combined.gtf_file_to_cDNA_seqs.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell:
         "(gffread {input.gtf} -T -o {output.gtf} --no-pseudo --force-exons -M -Q && "
@@ -93,6 +100,7 @@ rule makeblastdb:
         f"{UNIPROTFASTA}.psq"
     benchmark: f"{os.path.splitext(UNIPROTFASTA)[0]}makeblastdb.benchmark"
     log: f"{os.path.splitext(UNIPROTFASTA)[0]}makeblastdb.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell: "makeblastdb -in {input} -dbtype prot 2> {log}"
 
@@ -108,6 +116,7 @@ rule blastp:
     output: "{dir}/isoforms/combined.blastp.outfmt6"
     benchmark: "{dir}/isoforms/combined.blastp.benchmark"
     log: "{dir}/isoforms/combined.blastp.log"
+    conda: "environments/isoforms.yaml"
     threads: 23
     shell: "blastp \
         -num_threads {threads} \
@@ -126,6 +135,7 @@ rule LongOrfs:
         temp(directory("{dir}/isoforms.__checkpoints_longorfs"))
     benchmark: "{dir}/isoforms/combined.LongOrfs.benchmark"
     log: "{dir}/isoforms/combined.LongOrfs.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell: "TransDecoder.LongOrfs -O {wildcards.dir}/isoforms -t {input} -m 100 2> {log}" # -S for strand-specific
 
@@ -142,6 +152,7 @@ rule Predict:
         gff3="{dir}/isoforms/combined.transcripts.fasta.transdecoder.gff3"
     benchmark: "{dir}/isoforms/combined.Predict.benchmark"
     log: "{dir}/isoforms/combined.Predict.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell:
         "cd {wildcards.dir}/isoforms && TransDecoder.Predict -O . -t ../../{input.fasta} "
@@ -153,6 +164,7 @@ rule gtf_to_alignment_gff3:
     output: "{dir}/isoforms/combined.transcripts.gff3"
     benchmark: "{dir}/isoforms/combined.gtf_to_alignment_gff3.benchmark"
     log: "{dir}/isoforms/combined.gtf_to_alignment_gff3.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell: "gtf_to_alignment_gff3.pl {input} > {output} 2> {log}"
 
@@ -165,6 +177,7 @@ rule cdna_alignment_orf_to_genome_orf:
     output: "{dir}/isoforms/combined.transcripts.genome.gff3"
     benchmark: "{dir}/isoforms/combined.cdna_alignment_orf_to_genome_orf.benchmark"
     log: "{dir}/isoforms/combined.cdna_alignment_orf_to_genome_orf.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell: "cdna_alignment_orf_to_genome_orf.pl {input.gff3_td} {input.gff3} {input.fasta_td} > {output} 2> {log}"
 
@@ -174,6 +187,7 @@ rule gff3_file_to_bed:
     output: "{dir}/isoforms/combined.proteome.bed"
     benchmark: "{dir}/isoforms/combined.gff3_file_to_bed.benchmark"
     log: "{dir}/isoforms/combined.gff3_file_to_bed.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell:
         "cat {input} | grep -P \"\tCDS\t\" | gffread --force-exons - -o- | gff3_file_to_bed.pl /dev/stdin | tail -n +2 > {output} 2> {log}"
@@ -185,6 +199,7 @@ rule gff3_file_to_proteins:
     params: fa=FA
     benchmark: "{dir}/isoforms/combined.gff3_file_to_proteins.benchmark"
     log: "{dir}/isoforms/combined.gff3_file_to_proteins.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     shell: "cat {input} | grep -P \"\tCDS\t\" | gffread --force-exons - -o- | gff3_file_to_proteins.pl --gff3 /dev/stdin --fasta {params.fa} | egrep -o '^[^*]+' > {output} 2> {log}"
 
@@ -195,6 +210,7 @@ rule reorderFASTA:
     output: "{dir}/isoforms/combined.proteome.unique.fasta"
     benchmark: "{dir}/isoforms/combined.reorderFASTA.benchmark"
     log: "{dir}/isoforms/combined.reorderFASTA.log"
+    conda: "environments/isoforms.yaml"
     threads: 1
     script: "scripts/reorderFASTA.R"
 
@@ -218,6 +234,7 @@ rule remove_exon_and_utr_information:
     input: "{dir}/isoforms/combined.transcripts.genome.gff3"
     output: "{dir}/isoforms/combined.transcripts.genome.cds.gff3"
     log: "{dir}/isoforms/combined.transcripts.genome.cds.log"
+    conda: "environments/isoforms.yaml"
     shell: "python scripts/simplify_gff3.py {input} > {output} 2> {log}"
 
 rule copy_gff3_to_snpeff:
@@ -242,6 +259,7 @@ rule generate_snpeff_database:
     resources: mem_mb=16000
     benchmark: "SnpEff/data/combined.transcripts.genome.gff3/snpeffdatabase.benchmark"
     log: "SnpEff/data/combined.transcripts.genome.gff3/snpeffdatabase.log"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "cp {input.pfa} {output.pfa} && "
         "cp {input.gfa} {output.gfa} && "

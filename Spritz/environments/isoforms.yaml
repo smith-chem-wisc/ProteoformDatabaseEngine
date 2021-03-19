@@ -1,0 +1,17 @@
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - snakemake-minimal =5.27.4
+  - python =3.8
+  - hisat2 =2.2.1
+  - samtools =1.11
+  - stringtie
+  - bcbio-gff
+  - r =4.0 # for ProteomeGenerator
+  - bioconductor-biostrings # for ProteomeGenerator
+  - picard # for ProteomeGenerator
+  - transdecoder # for ProteomeGenerator
+  - gffread # for ProteomeGenerator
+  - blast # for ProteomeGenerdator

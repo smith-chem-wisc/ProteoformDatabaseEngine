@@ -4,6 +4,7 @@ rule download_protein_xml:
         fasta=UNIPROTFASTA,
     log: f"{UNIPROTXML}.log"
     benchmark: f"{UNIPROTXML}.benchmark"
+    conda: "environments/downloads.yaml"
     shell:
         "(python scripts/get_proteome.py && "
         "python scripts/download_uniprot.py xml | gzip -c > {output.xml} && " #fixme
@@ -13,6 +14,7 @@ rule build_transfer_mods:
     output: TRANSFER_MOD_DLL
     log: "data/TransferUniProtModifications.build.log"
     benchmark: "data/TransferUniProtModifications.build.benchmark"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "(cd TransferUniProtModifications && "
         "dotnet restore && "
@@ -25,6 +27,7 @@ rule setup_transfer_mods:
         "PSI-MOD.obo.xml"
     log: "data/setup_transfer_mods.log"
     benchmark: "data/setup_transfer_mods.benchmark"
+    conda: "environments/proteogenomics.yaml"
     shell: "dotnet {input} --setup &> {log}"
 
 rule transfer_modifications_variant:
@@ -39,6 +42,7 @@ rule transfer_modifications_variant:
         protxmlwithmodsgz="{dir}/variants/combined.spritz.snpeff.protein.withmods.xml.gz",
     log: "{dir}/variants/combined.spritz.snpeff.protein.withmods.log"
     benchmark: "{dir}/variants/combined.spritz.snpeff.protein.withmods.benchmark"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "(dotnet {input.transfermods} -x {input.unixml} -y {input.protxml} && "
         "gzip -k {input.protxml} {output.protxmlwithmods}) &> {log}"
@@ -54,6 +58,7 @@ rule transfer_modifications_isoformvariant:
         protxmlwithmods=temp("{dir}/variants/combined.spritz.isoformvariants.protein.withmods.xml"),
         protxmlwithmodsgz="{dir}/variants/combined.spritz.isoformvariants.protein.withmods.xml.gz",
     log: "{dir}/variants/combined.spritz.isoformvariants.protein.withmods.log"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "(dotnet {input.transfermods} -x {input.unixml} -y {input.protxml} && "
         "gzip -k {output.protxmlwithmods} {input.protxml}) &> {log}"
@@ -75,6 +80,7 @@ rule generate_reference_snpeff_database:
         genome_version=GENOME_VERSION
     benchmark: f"SnpEff/data/{REF}/snpeffdatabase.benchmark"
     log: f"SnpEff/data/{REF}/snpeffdatabase.log"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "cp {input.gff3} {output.gff3} && "
         "cp {input.pfa} {output.pfa} && "
@@ -108,6 +114,7 @@ rule reference_protein_xml:
     resources: mem_mb=16000
     benchmark: os.path.join("{dir}/variants/", f"{REF}.{ENSEMBL_VERSION}.spritz.benchmark")
     log: os.path.join("{dir}/variants/", f"{REF}.{ENSEMBL_VERSION}.spritz.log")
+    conda: "environments/proteogenomics.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -nostats"
         " -xmlProt {output.protxml} {params.ref} && " # no isoforms, no variants
@@ -140,6 +147,7 @@ rule custom_protein_xml:
     resources: mem_mb=16000
     benchmark: "{dir}/isoforms/combined.spritz.isoform.benchmark"
     log: "{dir}/isoforms/combined.spritz.isoform.log"
+    conda: "environments/proteogenomics.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -nostats"
         " -xmlProt {output.protxml} {params.ref} < /dev/null && " # isoforms, no variants

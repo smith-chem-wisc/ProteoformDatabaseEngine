@@ -9,6 +9,7 @@ rule download_snpeff:
     params:
         url="https://github.com/smith-chem-wisc/SnpEff/releases/download/4.3_SCW1/SnpEff_4.3_SmithChemWisc_v2.zip"
     log: "data/SnpEffInstall.log"
+    conda: "environments/downloads.yaml"
     shell:
         "(wget {params.url} && unzip {output.filename} -d SnpEff) &> {log}"
 
@@ -16,6 +17,7 @@ rule index_fa:
     input: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa"
     output: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa.fai"
     log: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa.log"
+    conda: "environments/variants.yaml"
     shell: "samtools faidx {input}"
 
 rule hisat2_groupmark_bam:
@@ -34,6 +36,7 @@ rule hisat2_groupmark_bam:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk {params.gatk_java} AddOrReplaceReadGroups -PU platform  -PL illumina -SM sample -LB library -I {input.sorted} -O {output.grouped} -SO coordinate --TMP_DIR {input.tmp} && "
         "samtools index {output.grouped} && "
@@ -58,6 +61,7 @@ rule split_n_cigar_reads:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk {params.gatk_java} FixMisencodedBaseQualityReads -I {input.bam} -O {output.fixed} && "
         "gatk {params.gatk_java} SplitNCigarReads -R {input.fa} -I {output.fixed} -O {output.split} --tmp-dir {input.tmp} || " # fix and split
@@ -80,6 +84,7 @@ rule base_recalibration:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk {params.gatk_java} BaseRecalibrator -R {input.fa} -I {input.bam} --known-sites {input.knownsites} -O {output.recaltable} --tmp-dir {input.tmp} && "
         "gatk {params.gatk_java} ApplyBQSR -R {input.fa} -I {input.bam} --bqsr-recal-file {output.recaltable} -O {output.recalbam} --tmp-dir {input.tmp} && "
@@ -104,6 +109,7 @@ rule call_gvcf_varaints:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk {params.gatk_java} HaplotypeCaller"
         " --native-pair-hmm-threads {threads}"
@@ -125,6 +131,7 @@ rule call_vcf_variants:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk {params.gatk_java} GenotypeGVCFs -R {input.fa} -V {input.gvcf} -O {output} --tmp-dir {input.tmp} && "
         "gatk IndexFeatureFile -I {output}) &> {log}"
@@ -142,6 +149,7 @@ rule filter_indels:
     output: "{dir}/variants/combined.spritz.noindels.vcf"
     log: "{dir}/variants/combined.spritz.noindels.log"
     benchmark: "{dir}/variants/combined.spritz.noindels.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(gatk SelectVariants --select-type-to-exclude INDEL -R {input.fa} -V {input.vcf} -O {output} && "
         "gatk IndexFeatureFile -I {output}) &> {log}"
@@ -162,6 +170,7 @@ rule variant_annotation_ref:
     resources: mem_mb=16000
     log: "{dir}/variants/combined.spritz.snpeff.log"
     benchmark: "{dir}/variants/combined.spritz.snpeff.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -stats {output.html}"
         " -fastaProt {output.protfa} -xmlProt {output.protxml} "
@@ -188,6 +197,7 @@ rule variant_annotation_custom:
     resources: mem_mb=GATK_MEM
     log: "{dir}/variants/combined.spritz.isoformvariants.log"
     benchmark: "{dir}/variants/combined.spritz.isoformvariants.benchmark"
+    conda: "environments/variants.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -stats {output.html}"
         " -fastaProt {output.protfa} -xmlProt {output.protxml}"

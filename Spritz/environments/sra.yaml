@@ -1,0 +1,8 @@
+channels:
+  - bioconda
+  - conda-forge
+  - hcc
+dependencies:
+  - aspera-cli
+  - sra-tools
+  - openssh

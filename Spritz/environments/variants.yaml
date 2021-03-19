@@ -1,0 +1,16 @@
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python =3.8
+  - java-jdk =8.0.92
+  - gatk4 =4.1.9.0
+  - samtools =1.11
+  - biopython
+  - numpy =1.19.4
+  - bcbio-gff
+  - pandas
+  - gzip
+  - wget
+  - curl
