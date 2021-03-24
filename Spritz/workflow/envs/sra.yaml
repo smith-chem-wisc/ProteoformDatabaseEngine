@@ -1,0 +1,7 @@
+# sra.yaml: partial environment for SRA downloads
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - sra-tools =2.10.1

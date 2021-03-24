@@ -1,0 +1,6 @@
+# default.yaml partial environment for default tasks
+channels:
+  - conda-forge
+dependencies:
+  - python =3.8
+  - pyyaml

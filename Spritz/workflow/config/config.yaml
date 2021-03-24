@@ -1,0 +1,12 @@
+sra: [SRR629563] #  paired-end SRAs, comma separated, can leave empty, e.g. SRR629563
+fq: [] # paired-end fastq prefixes, comma separated, can leave empty, e.g. TestPairedEnd
+sra_se: [SRR8070095] # single-end SRAs, comma separated, can leave empty, e.g. SRR8070095
+fq_se: [] # single-end fastq prefixes, comma separated, can leave empty, e.g. TestSingleEnd
+analysis_directory: [../results] # for paths to drive e.g. /mnt/c/AnalysisFolder
+species: "Homo_sapiens" # ensembl species name
+genome: "GRCh38" # ensembl genome version
+release: "100" # ensembl release version
+organism: "human" # based on uniprot
+# analyses: [isoform,variant,quant] # isoform construction, variant calling, transcript quantification
+analyses: [quant]
+spritz_version: "0.3.0" # should be the same here, common.smk, and MainWindow.xml.cs

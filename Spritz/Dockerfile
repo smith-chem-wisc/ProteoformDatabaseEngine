@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . ./
 RUN conda init \
         && conda update -c defaults conda \
-        && conda env create --name spritz --file environment.yaml
+        && conda env create --name spritz --file workflow/environments/environment.yaml
 
 # Add script to execute snakemake upon activate
 # Note that running this script outside of activation has not worked

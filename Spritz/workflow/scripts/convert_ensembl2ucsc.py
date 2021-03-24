@@ -3,7 +3,7 @@ import sys, os
 file, newfile = sys.argv[1:]
 
 ensembl2ucsc={}
-for line in open("ChromosomeMappings/GRCh38_ensembl2UCSC.txt"):
+for line in open("../resources/ChromosomeMappings/GRCh38_ensembl2UCSC.txt"):
     linesplit=line.strip().split("\t")
     if len(linesplit) <= 1: continue
     ensembl2ucsc[linesplit[0]] = linesplit[1]
@@ -33,7 +33,7 @@ with open(newfile,"w") as ucsc:
     # order and output
     ordered = []
     chrn = [f"chr{x}" for x in range(1, max_chr + 1)]
-    chrn.extend(["chrX","chrY","chrM"])
+    chrn.extend(["chrX", "chrY", "chrM"])
     # chrn.extend([ccc for ccc in chrs.keys() if ccc.startswith("GL")])
     # chrn.extend([ccc for ccc in chrs.keys() if ccc.startswith("KI")])
     otherchr = [ccc for ccc in chrs.keys() if ccc not in chrn]

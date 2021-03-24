@@ -1,3 +1,4 @@
+# setup.yaml: full environment for spritz setup before uploading to protected server
 channels:
   - bioconda
   - conda-forge

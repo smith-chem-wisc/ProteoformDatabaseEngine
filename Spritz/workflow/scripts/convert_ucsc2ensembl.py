@@ -1,18 +1,18 @@
 import sys, yaml
 
-with open("config.yaml", 'r') as stream:
+with open("config/config.yaml", 'r') as stream:
    data = yaml.safe_load(stream)
 
 species = data["species"]
 version = data["genome"]
 
 ucsc2ensembl={}
-for line in open("ChromosomeMappings/" + version + "_UCSC2ensembl.txt"):
+for line in open(f"../resources/ChromosomeMappings/{version}_UCSC2ensembl.txt"):
     linesplit=line.strip().split("\t")
     if len(linesplit) <= 1: continue
     ucsc2ensembl[linesplit[0]] = linesplit[1]
 
-with open("./data/ensembl/" + species + ".ensembl.vcf","w") as ensembl:
+with open(f"../resources/ensembl/{species}.ensembl.vcf","w") as ensembl:
     chrs={}
     max_chr=0
     for line in sys.stdin:

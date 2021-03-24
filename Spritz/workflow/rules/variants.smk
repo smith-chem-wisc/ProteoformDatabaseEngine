@@ -1,30 +1,62 @@
-GATK_MEM=16000 # MB
+GATK_MEM=24000 # MB
 GATK_JAVA=f"--java-options \"-Xmx{GATK_MEM}M -Dsamjdk.compression_level=9\""
 
 rule download_snpeff:
+    '''Download and unpack custom SnpEff for annotating variants'''
     output:
-        "SnpEff/snpEff.config",
-        "SnpEff/snpEff.jar",
-        filename=temp("SnpEff_4.3_SmithChemWisc_v2.zip")
+        "../resources/SnpEff/snpEff.config",
+        "../resources/SnpEff/snpEff.jar",
+        filename=temp("../resources/SnpEff_4.3_SmithChemWisc_v2.zip")
     params:
         url="https://github.com/smith-chem-wisc/SnpEff/releases/download/4.3_SCW1/SnpEff_4.3_SmithChemWisc_v2.zip"
-    log: "data/SnpEffInstall.log"
+    log: "../resources/SnpEffInstall.log"
+    conda: "../envs/downloads.yaml"
     shell:
-        "(wget {params.url} && unzip {output.filename} -d SnpEff) &> {log}"
+        "(cd ../resources/ && "
+        "wget {params.url} && "
+        "unzip {output.filename} -d SnpEff) &> {log}"
 
 rule index_fa:
-    input: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa"
-    output: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa.fai"
-    log: f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa.log"
+    '''Index genome FASTA file'''
+    input: KARYOTYPIC_GENOME_FA
+    output: f"{KARYOTYPIC_GENOME_PREFIX}.fa.fai"
+    log: f"{KARYOTYPIC_GENOME_PREFIX}.fa.faindex.log"
+    conda: "../envs/variants.yaml"
     shell: "samtools faidx {input}"
 
-rule hisat2_groupmark_bam:
+rule variant_tmpdir:
+    output: temp(directory("../resources/tmp")),
+    log: "../resources/tmpdir.log"
+    conda: "../envs/variants.yaml"
+    shell: "mkdir {output} 2> {log}"
+
+rule hisat2_group:
+    '''Add read groups to sorted BAM file'''
     input:
         sorted="{dir}/align/combined.sorted.bam",
-        tmp="tmp"
+        tmp="../resources/tmp"
     output:
         grouped=temp("{dir}/variants/combined.sorted.grouped.bam"),
-        groupedidx=temp("{dir}/variants/combined.sorted.grouped.bam.bai"),
+        groupedidx=temp("{dir}/variants/combined.sorted.grouped.bam.bai")
+    params:
+        gatk_java=GATK_JAVA
+    resources:
+        mem_mb=GATK_MEM
+    log: "{dir}/variants/combined.sorted.grouped.log"
+    benchmark: "{dir}/variants/combined.sorted.grouped.benchmark"
+    conda: "../envs/variants.yaml"
+    shell:
+        "(gatk {params.gatk_java} AddOrReplaceReadGroups"
+        " -PU platform -PL illumina -SM sample -LB library"
+        " -I {input.sorted} -O {output.grouped} --TMP_DIR {input.tmp} && "
+        "samtools index {output.grouped}) &> {log}"
+
+rule hisat2_mark:
+    '''Mark duplicates in sorted BAM file'''
+    input:
+        grouped="{dir}/variants/combined.sorted.grouped.bam",
+        tmp="../resources/tmp"
+    output:
         marked="{dir}/variants/combined.sorted.grouped.marked.bam",
         markedidx="{dir}/variants/combined.sorted.grouped.marked.bam.bai",
         metrics="{dir}/variants/combined.sorted.grouped.marked.metrics"
@@ -34,20 +66,22 @@ rule hisat2_groupmark_bam:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.benchmark"
+    conda: "../envs/variants.yaml"
     shell:
-        "(gatk {params.gatk_java} AddOrReplaceReadGroups -PU platform  -PL illumina -SM sample -LB library -I {input.sorted} -O {output.grouped} -SO coordinate --TMP_DIR {input.tmp} && "
-        "samtools index {output.grouped} && "
-        "gatk {params.gatk_java} MarkDuplicates -I {output.grouped} -O {output.marked} -M {output.metrics} --TMP_DIR {input.tmp} -AS true && "
+        "(gatk {params.gatk_java} MarkDuplicates"
+        " -I {input.grouped} -O {output.marked} -M {output.metrics}"
+        " --ASSUME_SORT_ORDER coordinate --TMP_DIR {input.tmp} && "
         "samtools index {output.marked}) &> {log}"
 
 # Checks if quality encoding is correct, and then splits n cigar reads
 rule split_n_cigar_reads:
+    '''Check quality scores and split Ns in the cigar reads'''
     input:
         bam="{dir}/variants/combined.sorted.grouped.marked.bam",
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
-        fai=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa.fai",
-        fadict=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.dict",
-        tmp="tmp"
+        fa=KARYOTYPIC_GENOME_FA,
+        fai=f"{KARYOTYPIC_GENOME_PREFIX}.fa.fai",
+        fadict=f"{KARYOTYPIC_GENOME_PREFIX}.dict",
+        tmp="../resources/tmp"
     output:
         fixed=temp("{dir}/variants/combined.fixedQuals.bam"),
         split=temp("{dir}/variants/combined.sorted.grouped.marked.split.bam"),
@@ -58,6 +92,7 @@ rule split_n_cigar_reads:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.benchmark"
+    conda: "../envs/variants.yaml"
     shell:
         "(gatk {params.gatk_java} FixMisencodedBaseQualityReads -I {input.bam} -O {output.fixed} && "
         "gatk {params.gatk_java} SplitNCigarReads -R {input.fa} -I {output.fixed} -O {output.split} --tmp-dir {input.tmp} || " # fix and split
@@ -65,12 +100,13 @@ rule split_n_cigar_reads:
         "samtools index {output.split}) &> {log}" # always index
 
 rule base_recalibration:
+    '''Generate recalibration table and recalibrate BAM file'''
     input:
-        knownsites=f"data/ensembl/{config['species']}.ensembl.vcf",
-        knownsitesidx=f"data/ensembl/{config['species']}.ensembl.vcf.idx",
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
+        knownsites=f"../resources/ensembl/{SPECIES}.ensembl.vcf",
+        knownsitesidx=f"../resources/ensembl/{SPECIES}.ensembl.vcf.idx",
+        fa=KARYOTYPIC_GENOME_FA,
         bam="{dir}/variants/combined.sorted.grouped.marked.split.bam",
-        tmp="tmp"
+        tmp="../resources/tmp"
     output:
         recaltable=temp("{dir}/variants/combined.sorted.grouped.marked.split.recaltable"),
         recalbam=temp("{dir}/variants/combined.sorted.grouped.marked.split.recal.bam")
@@ -80,18 +116,22 @@ rule base_recalibration:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.benchmark"
+    conda: "../envs/variants.yaml"
     shell:
-        "(gatk {params.gatk_java} BaseRecalibrator -R {input.fa} -I {input.bam} --known-sites {input.knownsites} -O {output.recaltable} --tmp-dir {input.tmp} && "
-        "gatk {params.gatk_java} ApplyBQSR -R {input.fa} -I {input.bam} --bqsr-recal-file {output.recaltable} -O {output.recalbam} --tmp-dir {input.tmp} && "
+        "(gatk {params.gatk_java} BaseRecalibrator -R {input.fa} -I {input.bam}"
+        " --known-sites {input.knownsites} -O {output.recaltable} --tmp-dir {input.tmp} && "
+        "gatk {params.gatk_java} ApplyBQSR -R {input.fa} -I {input.bam}"
+        " --bqsr-recal-file {output.recaltable} -O {output.recalbam} --tmp-dir {input.tmp} && "
         "samtools index {output.recalbam}) &> {log}"
 
 rule call_gvcf_varaints:
+    '''Create genome VCF file'''
     input:
-        knownsites=f"data/ensembl/{config['species']}.ensembl.vcf",
-        knownsitesidx=f"data/ensembl/{config['species']}.ensembl.vcf.idx",
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
+        knownsites=f"../resources/ensembl/{SPECIES}.ensembl.vcf",
+        knownsitesidx=f"../resources/ensembl/{SPECIES}.ensembl.vcf.idx",
+        fa=KARYOTYPIC_GENOME_FA,
         bam="{dir}/variants/combined.sorted.grouped.marked.split.recal.bam",
-        tmp="tmp"
+        tmp="../resources/tmp"
     output: temp("{dir}/variants/combined.sorted.grouped.marked.split.recal.g.vcf.gz"),
     threads: 8
         # HaplotypeCaller is only fairly efficient with threading;
@@ -104,6 +144,7 @@ rule call_gvcf_varaints:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.benchmark"
+    conda: "../envs/variants.yaml"
     shell:
         "(gatk {params.gatk_java} HaplotypeCaller"
         " --native-pair-hmm-threads {threads}"
@@ -114,10 +155,11 @@ rule call_gvcf_varaints:
         "gatk IndexFeatureFile -I {output}) &> {log}"
 
 rule call_vcf_variants:
+    '''Genotype the gVCF for the combined dataset to make VCF'''
     input:
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
+        fa=KARYOTYPIC_GENOME_FA,
         gvcf="{dir}/variants/combined.sorted.grouped.marked.split.recal.g.vcf.gz",
-        tmp="tmp"
+        tmp="../resources/tmp"
     output: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.vcf" # renamed in next rule
     params:
         gatk_java=GATK_JAVA
@@ -125,32 +167,26 @@ rule call_vcf_variants:
         mem_mb=GATK_MEM
     log: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.log"
     benchmark: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.benchmark"
+    conda: "../envs/variants.yaml"
     shell:
-        "(gatk {params.gatk_java} GenotypeGVCFs -R {input.fa} -V {input.gvcf} -O {output} --tmp-dir {input.tmp} && "
+        "(gatk {params.gatk_java} GenotypeGVCFs"
+        " -R {input.fa} -V {input.gvcf} -O {output} --tmp-dir {input.tmp} && "
         "gatk IndexFeatureFile -I {output}) &> {log}"
 
 rule final_vcf_naming:
+    '''Rename VCF to shorter filename'''
     input: "{dir}/variants/combined.sorted.grouped.marked.split.recal.g.gt.vcf"
     output: "{dir}/variants/combined.spritz.vcf"
     log: "{dir}/variants/final_vcf_naming.log"
+    conda: "../envs/variants.yaml"
     shell: "mv {input} {output} 2> {log}"
 
-rule filter_indels:
-    input:
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
-        vcf="{dir}/variants/combined.spritz.vcf"
-    output: "{dir}/variants/combined.spritz.noindels.vcf"
-    log: "{dir}/variants/combined.spritz.noindels.log"
-    benchmark: "{dir}/variants/combined.spritz.noindels.benchmark"
-    shell:
-        "(gatk SelectVariants --select-type-to-exclude INDEL -R {input.fa} -V {input.vcf} -O {output} && "
-        "gatk IndexFeatureFile -I {output}) &> {log}"
-
 rule variant_annotation_ref:
+    '''Generate proteome FASTA and XML for reference database'''
     input:
-        f"SnpEff/data/{REF}/done{REF}.txt",
-        snpeff="SnpEff/snpEff.jar",
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
+        f"../resources/SnpEff/data/{REF}/done{REF}.txt",
+        snpeff="../resources/SnpEff/snpEff.jar",
+        fa=KARYOTYPIC_GENOME_FA,
         vcf="{dir}/variants/combined.spritz.vcf",
     output:
         ann="{dir}/variants/combined.spritz.snpeff.vcf",
@@ -162,6 +198,7 @@ rule variant_annotation_ref:
     resources: mem_mb=16000
     log: "{dir}/variants/combined.spritz.snpeff.log"
     benchmark: "{dir}/variants/combined.spritz.snpeff.benchmark"
+    conda: "../envs/proteogenomics.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -stats {output.html}"
         " -fastaProt {output.protfa} -xmlProt {output.protxml} "
@@ -170,14 +207,14 @@ rule variant_annotation_ref:
 
 rule variant_annotation_custom:
     input:
-        snpeff="SnpEff/snpEff.jar",
-        fa=f"data/ensembl/{REF}.dna.primary_assembly.karyotypic.fa",
+        snpeff="../resources/SnpEff/snpEff.jar",
+        fa=KARYOTYPIC_GENOME_FA,
         vcf="{dir}/variants/combined.spritz.vcf",
         isoform_reconstruction=[
-            "SnpEff/data/combined.transcripts.genome.gff3/genes.gff",
-            "SnpEff/data/combined.transcripts.genome.gff3/protein.fa",
-            "SnpEff/data/genomes/combined.transcripts.genome.gff3.fa",
-            "SnpEff/data/combined.transcripts.genome.gff3/done.txt"],
+            "../resources/SnpEff/data/combined.transcripts.genome.gff3/genes.gff",
+            "../resources/SnpEff/data/combined.transcripts.genome.gff3/protein.fa",
+            "../resources/SnpEff/data/genomes/combined.transcripts.genome.gff3.fa",
+            "../resources/SnpEff/data/combined.transcripts.genome.gff3/done.txt"],
     output:
         ann="{dir}/variants/combined.spritz.isoformvariants.vcf",
         html="{dir}/variants/combined.spritz.isoformvariants.html",
@@ -188,6 +225,7 @@ rule variant_annotation_custom:
     resources: mem_mb=GATK_MEM
     log: "{dir}/variants/combined.spritz.isoformvariants.log"
     benchmark: "{dir}/variants/combined.spritz.isoformvariants.benchmark"
+    conda: "../envs/proteogenomics.yaml"
     shell:
         "(java -Xmx{resources.mem_mb}M -jar {input.snpeff} -v -stats {output.html}"
         " -fastaProt {output.protfa} -xmlProt {output.protxml}"
@@ -213,6 +251,7 @@ rule finish_variants:
         refprotwithdecoysfa=os.path.join("{dir}/final/", f"{REF}.{ENSEMBL_VERSION}.protein.withdecoys.fasta"),
         refprotwithmodsxml=os.path.join("{dir}/final/", f"{REF}.{ENSEMBL_VERSION}.protein.withmods.xml.gz"),
     log: "{dir}/variants/finish_isoform_variants.log"
+    conda: "../envs/proteogenomics.yaml"
     shell:
         "cp {input.ann} {input.protfa} {input.protwithdecoysfa} {input.protxmlwithmodsgz}"
         " {input.refprotfa} {input.refprotwithdecoysfa} {input.refprotwithmodsxml} {wildcards.dir}/final 2> {log}"
@@ -230,5 +269,6 @@ rule finish_isoform_variants:
         protwithdecoysfa="{dir}/final/combined.spritz.isoformvariants.protein.withdecoys.fasta",
         protxmlwithmodsgz="{dir}/final/combined.spritz.isoformvariants.protein.withmods.xml.gz",
     log: "{dir}/variants/finish_isoform_variants.log"
+    conda: "../envs/proteogenomics.yaml"
     shell:
         "cp {input.ann} {input.protfa} {input.protwithdecoysfa} {input.protxmlwithmodsgz} {wildcards.dir}/final 2> {log}"

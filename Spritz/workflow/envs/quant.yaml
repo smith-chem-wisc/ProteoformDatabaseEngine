@@ -1,0 +1,11 @@
+# quant.yaml: partial environment for quantification with stringtie2
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python =3.8
+  - numpy =1.19.4
+  - stringtie
+  - gzip # use conda's gzip, not the system's
+  - pandas

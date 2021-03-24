@@ -1,0 +1,53 @@
+configfile: "config/config.yaml"
+report: "report/workflow.rst"
+include: "rules/common.smk"
+
+rule all:
+    input: all_output # see common.smk
+
+rule clean:
+    log: expand("{dir}/clean.log", dir=config['analysis_directory'])
+    conda: "envs/proteogenomics.yaml"
+    shell:
+        "rm -rf ../resources/ ptmlist.txt PSI-MOD.obo.xml &&"
+        "cd ../TransferUniProtModifications && dotnet clean && cd .. 2> {log}"
+
+rule update_message:
+    output: "{dir}/please_update_spritz.txt"
+    log: "{dir}/please_update_spritz.log"
+    conda: "envs/default.yaml"
+    shell: "echo \"Please update Spritz at https://github.com/smith-chem-wisc/Spritz/releases\" > {output} 2> {log}"
+
+rule prose:
+    output: "{dir}/prose.txt"
+    log: "{dir}/prose.log"
+    conda: "envs/default.yaml"
+    shell: "python scripts/prose.py {output} 2> {log}"
+
+rule setup:
+    input:
+        f"../resources/ChromosomeMappings/{GENOME_VERSION}_UCSC2ensembl.txt",
+        f"../resources/ensembl/{SPECIES}.ensembl.vcf",
+        TRANSFER_MOD_DLL,
+        UNIPROTFASTA,
+        UNIPROTFASTA,
+        FA,
+        "../resources/ptmlist.txt",
+        "../resources/PSI-MOD.obo.xml",
+        "../resources/SnpEff/snpEff.jar",
+        [] if not check('sra') else expand([
+            "{dir}/{sra}_1.fastq",
+            "{dir}/{sra}_2.fastq"], dir=config['analysis_directory'], sra=config['sra']),
+        [] if not check('sra_se') else expand([
+            "{dir}/{sra_se}.fastq"], dir=config['analysis_directory'], sra_se=config['sra_se'])
+    output: "../resources/setup.txt"
+    log: "../resources/setup.log"
+    conda: "envs/default.yaml"
+    shell: "touch {output}"
+
+include: "rules/downloads.smk"
+include: "rules/align.smk"
+include: "rules/variants.smk"
+include: "rules/isoforms.smk"
+include: "rules/proteogenomics.smk"
+include: "rules/quant.smk"

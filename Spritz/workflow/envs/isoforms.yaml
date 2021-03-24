@@ -1,0 +1,14 @@
+# isoforms.yaml: partial environment for isoform reconstruction
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python =3.8
+  - samtools =1.11
+  - stringtie
+  - gzip # use conda's gzip, not the system's
+  - picard # for ProteomeGenerator
+  - transdecoder # for ProteomeGenerator
+  - gffread # for ProteomeGenerator
+  - blast # for ProteomeGenerdator

@@ -9,7 +9,7 @@ BASE = 'http://www.uniprot.org'
 KB_ENDPOINT = '/proteomes/'
 TOOL_ENDPOINT = '/uploadlists/'
 
-with open("config.yaml", 'r') as stream:
+with open("config/config.yaml", 'r') as stream:
    data = yaml.safe_load(stream)
 
 query = data["species"] # read config

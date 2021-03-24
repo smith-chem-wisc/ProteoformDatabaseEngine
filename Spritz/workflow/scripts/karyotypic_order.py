@@ -3,13 +3,13 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import yaml
 
-with open("config.yaml", 'r') as stream:
+with open("config/config.yaml", 'r') as stream:
    data = yaml.safe_load(stream)
 
 species = data["species"]
 version = data["genome"]
 
-fa = "./data/ensembl/" + species + "." + version + ".dna.primary_assembly.fa"
+fa = f"../resources/ensembl/{species}.{version}.dna.primary_assembly.fa"
 
 ordered = []
 chrn = [str(x) for x in range(1, 23)]
@@ -20,7 +20,7 @@ m = ""
 gl = []
 ki = []
 other = []
-for seq in SeqIO.parse(open(fa),'fasta'):
+for seq in SeqIO.parse(open(fa), 'fasta'):
     if seq.id.split(" ")[0] in chrn: chrs.append(seq)
     elif seq.id.split(" ")[0].startswith("X"): x = seq
     elif seq.id.split(" ")[0].startswith("Y"): y = seq
@@ -37,6 +37,6 @@ ordered.extend(gl)
 ordered.extend(ki)
 ordered.extend(other)
 
-with open("./data/ensembl/" + species + "." + version + ".dna.primary_assembly.karyotypic.fa","w") as out:
+with open(f"../resources/ensembl/{species}.{version}.dna.primary_assembly.karyotypic.fa", "w") as out:
     for seq in ordered:
         out.write(seq.format("fasta"))

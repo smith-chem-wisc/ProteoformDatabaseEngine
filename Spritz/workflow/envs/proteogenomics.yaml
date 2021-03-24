@@ -1,0 +1,7 @@
+# proteogenomics.yaml: partial environment for proteogenomic database construction
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - java-jdk =8.0.92 # snpeff
+  - dotnet-sdk =3.1.403 # transfermods

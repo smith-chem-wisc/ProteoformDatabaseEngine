@@ -49,7 +49,7 @@ Spritz will also [work on the commandline](https://github.com/smith-chem-wisc/Sp
 
 1. Add SRR629563 to the SRA list.
 
-2. Create the Spritz workflow. Select "release-82" and "homo_sapiens."
+2. Create the Spritz workflow. Select "release-97" and "homo_sapiens."
 
 3. Run Spritz!
 
@@ -73,3 +73,4 @@ This pipeline uses the following tools:
   * `samtools`: Li, H.; et al. The Sequence Alignment/Map format and SAMtools. Bioinformatics 2009, 25 (16), 2078-2079. https://academic.oup.com/bioinformatics/article/25/16/2078/204688.
   * `GATK`: McKenna, A.; et al. The Genome Analysis Toolkit: A MapReduce Framework for Analyzing next-Generation DNA Sequencing Data. Genome Res. 2010, 20 (9), 1297-1303. https://doi.org/10.1101/gr.107524.110.
   * `SnpEff`: Cingolani, P.; et al. A Program for Annotating and Predicting the Effects of Single Nucleotide Polymorphisms, SnpEff: SNPs in the Genome of Drosophila Melanogaster Strain W1118; Iso-2; Iso-3. Fly (Austin) 2012, 6 (2), 80-92. https://doi.org/10.4161/fly.19695.
+  * `StringTie2`: Kovaka, S.; et al. Transcriptome assembly from long-read RNA-seq alignments with StringTie2. Genome Biol 2019, 20 (278), 1-13. https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1910-1
